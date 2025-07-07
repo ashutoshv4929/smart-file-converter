@@ -3,8 +3,11 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertConversionSchema } from "@shared/schema";
 import { z } from "zod";
+import convertRouter from "./convert";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register file conversion router
+  app.use(convertRouter);
   // Get all conversions
   app.get("/api/conversions", async (req, res) => {
     try {

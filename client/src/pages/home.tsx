@@ -59,63 +59,16 @@ export default function Home() {
   const handleStartConversion = async (file: File, outputFormat: string) => {
     setModalOpen(false);
     setProgressModalOpen(true);
-    setProgress({ percentage: 0, status: 'Starting conversion...', currentStep: 'Preparing file' });
+    setProgress({ percentage: 0, status: 'Uploading file...', currentStep: 'Preparing request' });
 
     try {
-      let resultBlob: Blob;
       let fileName = file.name;
-      
-      // Simulate progress updates
-      const updateProgress = (percentage: number, status: string, currentStep?: string) => {
-        setProgress({ percentage, status, currentStep });
-      };
-
-      updateProgress(10, 'Processing file...', 'Reading file content');
-
-      switch (conversionType) {
-        case 'pdf-to-word':
-        case 'pdf-to-text':
-          updateProgress(30, 'Extracting text from PDF...', 'Analyzing PDF structure');
-          const pdfText = await FileConverter.pdfToText(file);
-          updateProgress(70, 'Creating output file...', 'Formatting content');
-          if (outputFormat === 'docx') {
-            resultBlob = await FileConverter.textToWord(pdfText);
-          } else {
-            resultBlob = new Blob([pdfText], { type: 'text/plain' });
-          }
-          break;
-
-        case 'word-to-pdf':
-        case 'text-to-pdf':
-          updateProgress(30, 'Converting to PDF...', 'Processing document');
-          updateProgress(70, 'Generating PDF...', 'Formatting layout');
-          resultBlob = await FileConverter.convertToPdf(file);
-          break;
-
-        case 'image-to-pdf':
-          updateProgress(30, 'Processing images...', 'Optimizing image quality');
-          updateProgress(70, 'Creating PDF...', 'Combining images');
-          resultBlob = await FileConverter.imagesToPdf([file]);
-          break;
-
-        case 'ocr-extract':
-          updateProgress(20, 'Initializing OCR...', 'Loading text recognition');
-          const extractedText = await FileConverter.extractTextFromImage(file, (ocrProgress) => {
-            updateProgress(20 + (ocrProgress * 0.6), 'Extracting text...', 'Analyzing image content');
-          });
-          updateProgress(90, 'Creating output file...', 'Formatting extracted text');
-          if (outputFormat === 'docx') {
-            resultBlob = await FileConverter.textToWord(extractedText);
-          } else {
-            resultBlob = new Blob([extractedText], { type: 'text/plain' });
-          }
-          break;
-
-        default:
-          throw new Error('Unsupported conversion type');
-      }
-
-      updateProgress(100, 'Conversion complete!', 'Preparing download');
+      // Call backend for conversion
+      setProgress({ percentage: 20, status: 'Converting file on server...', currentStep: 'Processing' });
+      const resultBlob = await FileConverter.convertViaBackend(file, conversionType, outputFormat, (percent) => {
+        setProgress({ percentage: 20 + percent * 0.7, status: 'Server processing...', currentStep: 'Converting' });
+      });
+      setProgress({ percentage: 95, status: 'Preparing download...', currentStep: 'Finishing up' });
 
       // Download the file
       FileConverter.downloadFile(resultBlob, fileName, outputFormat);
