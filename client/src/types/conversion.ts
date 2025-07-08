@@ -373,13 +373,4 @@ app.use(router);
 // Export the app for use in a server file or for testing
 export default app;
 
-// Example of how to start the server (e.g., in a server.ts file)
-/*
-import app from './your-file-name';
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-*/
-
 export type ConversionType = 'pdf-to-word' | 'pdf-to-excel' | 'pdf-to-ppt' | 'pdf-to-jpg' | 'pdf-to-text' | 'word-to-pdf' | 'excel-to-pdf' | 'ppt-to-pdf' | 'jpg-to-pdf' | 'text-to-pdf';
