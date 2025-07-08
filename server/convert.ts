@@ -35,12 +35,28 @@ function validateFileType(file: Express.Multer.File, allowedTypes: string[]) {
 // Use LibreOffice for document conversion
 async function convertWithLibreOffice(inputPath: string, outputPath: string, format: string) {
   try {
+    console.log(`Starting LibreOffice conversion: ${inputPath} -> ${outputPath} (${format})`);
+    
     await libreOfficeConvert({
       input: inputPath,
       output: outputPath,
       format: format
     });
-    console.log(`File converted successfully to ${format}: ${outputPath}`);
+    
+    console.log(`LibreOffice conversion completed successfully`);
+    
+    // Verify output file exists
+    if (!fs.existsSync(outputPath)) {
+      throw new Error(`Output file not created: ${outputPath}`);
+    }
+    
+    // Check file size
+    const stats = fs.statSync(outputPath);
+    if (stats.size === 0) {
+      throw new Error(`Output file is empty: ${outputPath}`);
+    }
+    
+    console.log(`Conversion successful. File size: ${stats.size} bytes`);
   } catch (err) {
     console.error('LibreOffice conversion error:', err);
     throw new Error(`Conversion failed: ${err.message}`);
@@ -156,21 +172,27 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
     // Conversion logic
     if (conversionType === 'word-to-pdf') {
       const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.pdf');
+      console.log(`Starting word-to-pdf conversion: ${file.path} -> ${outputPath}`);
       await convertWithLibreOffice(file.path, outputPath, 'pdf');
+      console.log(`Word-to-pdf conversion completed successfully`);
       resultBuffer = fs.readFileSync(outputPath);
       resultMime = 'application/pdf';
       filename = path.parse(file.originalname).name + '_converted.pdf';
     } else if (conversionType === 'pdf-to-word') {
       const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.docx');
+      console.log(`Starting pdf-to-word conversion: ${file.path} -> ${outputPath}`);
       await convertWithLibreOffice(file.path, outputPath, 'docx');
+      console.log(`Pdf-to-word conversion completed successfully`);
       resultBuffer = fs.readFileSync(outputPath);
       resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       filename = path.parse(file.originalname).name + '_converted.docx';
     } else if (conversionType === 'image-to-pdf') {
       const inputPath = file.path;
       const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.pdf');
+      console.log(`Starting image-to-pdf conversion: ${inputPath} -> ${outputPath}`);
       try {
         await imageToPdfWithILovePDF(inputPath, outputPath);
+        console.log(`Image-to-pdf conversion completed successfully`);
         if (!fs.existsSync(outputPath)) {
           console.error('PDF file nahi mili:', outputPath);
           return res.status(500).json({ message: 'PDF file nahi mili' });
@@ -187,9 +209,11 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
       }
     } else if (conversionType === 'text-to-pdf') {
       // TXT to PDF
+      console.log(`Starting text-to-pdf conversion: ${file.path}`);
       try {
         const text = fs.readFileSync(file.path, 'utf-8');
         resultBuffer = await textToPdf(text);
+        console.log(`Text-to-pdf conversion completed successfully`);
         if (!resultBuffer || resultBuffer.length === 0) {
           return res.status(500).json({ message: 'PDF conversion failed (empty output)' });
         }
@@ -200,6 +224,7 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
       }
     } else if (conversionType === 'ocr-extract') {
       // OCR Extraction with basic preprocessing
+      console.log(`Starting OCR extraction: ${file.path}`);
       const sharp = require('sharp');
       let imgBuffer = fs.readFileSync(file.path);
       try {
@@ -210,6 +235,7 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
       }
       try {
         const { data: { text } } = await Tesseract.recognize(imgBuffer, 'eng');
+        console.log(`OCR extraction completed successfully`);
         if (targetFormat === 'docx') {
           resultBuffer = await textToDocx(text);
           resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
