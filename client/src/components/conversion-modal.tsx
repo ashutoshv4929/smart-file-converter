@@ -2,7 +2,7 @@ import React, { useState, ForwardRefExoticComponent, RefAttributes } from 'react
 import { X, Upload, FileText, File, FileImage, FileInput, FileOutput, Image as ImageIcon, Text, FileType, FileJson } from 'lucide-react';
 import type { LucideIcon, LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ConversionType } from '@/types/conversion';
+import type { ConversionType } from '@/types/conversion';
 
 interface ConversionModalProps {
   isOpen: boolean;
@@ -18,7 +18,11 @@ interface OutputOption {
   description: string;
 }
 
-const conversionConfigs = {
+const conversionConfigs: Record<ConversionType, {
+  title: string;
+  acceptTypes: string;
+  outputOptions: OutputOption[];
+}> = {
   'pdf-to-word': {
     title: 'PDF to Word Converter',
     acceptTypes: '.pdf',

@@ -381,3 +381,5 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 */
+
+export type ConversionType = 'pdf-to-word' | 'pdf-to-excel' | 'pdf-to-ppt' | 'pdf-to-jpg' | 'pdf-to-text' | 'word-to-pdf' | 'excel-to-pdf' | 'ppt-to-pdf' | 'jpg-to-pdf' | 'text-to-pdf';
