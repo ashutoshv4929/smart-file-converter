@@ -16,7 +16,6 @@ async function wordToPdfWithILovePDF(inputPath: string, outputPath: string) {
   throw new Error('wordToPdfWithILovePDF not implemented');
 }
 
-// PDF to Word (DOCX) conversion using iLovePDF
 async function pdfToWordWithILovePDF(inputPath: string, outputPath: string) {
   try {
     const startRes = await axios.post(
@@ -61,7 +60,6 @@ async function pdfToWordWithILovePDF(inputPath: string, outputPath: string) {
   }
 }
 
-// Image to PDF conversion using iLovePDF
 async function imageToPdfWithILovePDF(inputPath: string, outputPath: string) {
   try {
     const startRes = await axios.post(
