@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { X, Upload, FileText, File } from 'lucide-react';
+import React, { useState, ForwardRefExoticComponent, RefAttributes } from 'react';
+import { X, Upload, FileText, File, FileImage, FileInput, FileOutput, Image as ImageIcon, Text, FileType, FileJson } from 'lucide-react';
+import type { LucideIcon, LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConversionType } from '@/types/conversion';
 
@@ -8,6 +9,13 @@ interface ConversionModalProps {
   onClose: () => void;
   conversionType: ConversionType;
   onStartConversion: (file: File, outputFormat: string) => void;
+}
+
+interface OutputOption {
+  format: string;
+  icon: LucideIcon;
+  label: string;
+  description: string;
 }
 
 const conversionConfigs = {
@@ -46,6 +54,13 @@ const conversionConfigs = {
     outputOptions: [
       { format: 'txt', icon: File, label: 'Text (.txt)', description: 'Plain text' },
       { format: 'docx', icon: FileText, label: 'Word (.docx)', description: 'Editable document' }
+    ]
+  },
+  'pdf-to-text': {
+    title: "PDF to Text",
+    acceptTypes: ".pdf",
+    outputOptions: [
+      { format: "txt", icon: FileText, label: "Text File", description: "Convert to plain text" }
     ]
   }
 };
@@ -123,19 +138,19 @@ export function ConversionModal({ isOpen, onClose, conversionType, onStartConver
             <div className="space-y-3 mb-6">
               <h4 className="font-medium">Convert to:</h4>
               <div className="grid grid-cols-2 gap-3">
-                {config.outputOptions.map(({ format, icon: Icon, label, description }) => (
+                {config.outputOptions.map((outputOption: OutputOption) => (
                   <button
-                    key={format}
-                    onClick={() => setSelectedFormat(format)}
+                    key={outputOption.format}
+                    onClick={() => setSelectedFormat(outputOption.format)}
                     className={`border rounded-lg p-3 text-left transition-colors ${
-                      selectedFormat === format
+                      selectedFormat === outputOption.format
                         ? 'border-primary bg-primary/10'
                         : 'border-gray-300 dark:border-gray-600 hover:border-primary'
                     }`}
                   >
-                    <Icon className="mb-2" size={16} />
-                    <div className="font-medium text-sm">{label}</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">{description}</div>
+                    <outputOption.icon className="mb-2" size={16} />
+                    <div className="font-medium text-sm">{outputOption.label}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{outputOption.description}</div>
                   </button>
                 ))}
               </div>
