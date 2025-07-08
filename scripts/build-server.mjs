@@ -1,5 +1,5 @@
 import esbuild from 'esbuild';
-import { tsconfigPathsPlugin } from '../esbuild-plugin.js';
+import { tsconfigPathsPlugin } from './esbuild-plugin.js';
 
 await esbuild.build({
   entryPoints: ['server/index.ts'],
