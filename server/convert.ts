@@ -13,7 +13,7 @@ import FormData from 'form-data';
 const ILOVEPDF_API_KEY = 'secret_key_3a6626f95c00ef97e3cddfe6c802285b_6Va8Vb384c93499d48d08e9be6f70e8524696';
 
 async function wordToPdfWithILovePDF(inputPath: string, outputPath: string) {
-  // (as before)
+  throw new Error('wordToPdfWithILovePDF not implemented');
 }
 
 // PDF to Word (DOCX) conversion using iLovePDF
