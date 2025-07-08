@@ -1,0 +1,6 @@
+services:
+  - name: smart-file-converter
+    type: web
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start

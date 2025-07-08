@@ -11,3 +11,5 @@ export const tsconfigPathsPlugin: Plugin = {
     });
   }
 };
+
+export default tsconfigPathsPlugin;
