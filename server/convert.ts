@@ -55,6 +55,10 @@ async function pdfToWordWithILovePDF(inputPath: string, outputPath: string) {
       writer.on('finish', () => resolve());
       writer.on('error', reject);
     });
+  } catch (error) {
+    console.error('Error in pdfToWordWithILovePDF:', error);
+    throw error;
+  }
 }
 
 // Image to PDF conversion using iLovePDF
