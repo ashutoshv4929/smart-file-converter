@@ -79,7 +79,7 @@ async function convertWithILovePDF(inputPath: string, tool: string, outputFilena
       form.append('file', fs.createReadStream(inputPath));
       await axios.post(`https://${server}/v1/upload`, form, { headers: { ...form.getHeaders(), Authorization: `Bearer ${ILOVEPDF_API_KEY}` } });
       await axios.post(`https://${server}/v1/process`, { task, tool }, { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } });
-      const downloadRes = await axios.get(`https://${server}/v1/download/${task}`, { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } });
+      const downloadRes = await axios.get(`https://api.ilovepdf.com/v1/download/${task}`, { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } });
       const outputPath = path.join('uploads', outputFilename);
       const writer = fs.createWriteStream(outputPath);
       downloadRes.data.pipe(writer);
@@ -157,6 +157,14 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
             resultBuffer = fs.readFileSync(tempConvertedPath);
             resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
             break;
+            
+        case 'pdf-to-text':
+            validateFileType(inputFile, ['pdf']);
+            const extractedText = await extractTextFromPdf(inputFile.path);
+            resultBuffer = Buffer.from(extractedText, 'utf-8');
+            resultMime = 'text/plain';
+            resultFilename = `${path.parse(inputFile.originalname).name}_extracted.txt`;
+            break;
 
         case 'image-to-pdf':
             validateFileType(inputFile, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff']);
@@ -212,6 +220,3 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
 });
 
 export default router;
-```
-
-After updating `convert.ts` with this code, please commit the change and deploy again. This will resolve the err
