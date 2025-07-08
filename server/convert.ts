@@ -269,6 +269,29 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
   }
 });
 
+// Test conversion endpoint
+router.get('/api/test-conversion', async (req: Request, res: Response) => {
+  try {
+    // Create a test document
+    const testContent = 'This is a test document for conversion';
+    const inputPath = path.join('uploads', 'test.docx');
+    fs.writeFileSync(inputPath, await textToDocx(testContent));
+    
+    // Convert to PDF
+    const outputPath = path.join('uploads', 'test.pdf');
+    await convertWithLibreOffice(inputPath, outputPath, 'pdf');
+    
+    // Verify output
+    if (!fs.existsSync(outputPath)) {
+      return res.status(500).send('Conversion failed - no output file');
+    }
+    
+    res.sendFile(path.resolve(outputPath));
+  } catch (err) {
+    res.status(500).send(`Test conversion failed: ${err.message}`);
+  }
+});
+
 // Health check endpoint for iLovePDF API
 router.get('/api/health', async (req: Request, res: Response) => {
   try {
