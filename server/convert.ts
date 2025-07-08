@@ -96,47 +96,11 @@ async function imageToPdfWithILovePDF(inputPath: string, outputPath: string) {
       writer.on('finish', () => resolve());
       writer.on('error', reject);
     });
+  } catch (error) {
+    console.error('imageToPdfWithILovePDF error:', error);
+    throw error;
+  }
 }
-
-  // 1. Start task
-  const startRes = await axios.post(
-    'https://api.ilovepdf.com/v1/start/officepdf',
-    {},
-    { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-  );
-  const { server, task } = startRes.data;
-
-  // 2. Upload DOCX
-  const form = new FormData();
-  form.append('task', task);
-  form.append('file', fs.createReadStream(inputPath));
-  await axios.post(
-    `https://${server}/v1/upload`,
-    form,
-    { headers: { ...form.getHeaders(), Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-  );
-
-  // 3. Process
-  await axios.post(
-    `https://${server}/v1/process`,
-    { task, tool: 'officepdf' },
-    { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-  );
-
-  // 4. Download PDF
-  const downloadRes = await axios.get(
-    `https://${server}/v1/download/${task}`,
-    { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-  );
-  const writer = fs.createWriteStream(outputPath);
-  downloadRes.data.pipe(writer);
-
-  return new Promise<void>((resolve, reject) => {
-    writer.on('finish', () => resolve());
-    writer.on('error', reject);
-  });
-}
-
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
