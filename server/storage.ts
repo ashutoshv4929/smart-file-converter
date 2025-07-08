@@ -1,4 +1,4 @@
-import { conversions, type Conversion, type InsertConversion } from "@shared/schema";
+import { conversions, type Conversion, type InsertConversion } from '../../shared/schema';
 
 export interface IStorage {
   createConversion(conversion: InsertConversion): Promise<Conversion>;

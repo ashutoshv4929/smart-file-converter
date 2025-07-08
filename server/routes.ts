@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertConversionSchema } from "@shared/schema";
+import { insertConversionSchema } from '../../shared/schema';
 import { z } from "zod";
 import convertRouter from "./convert";
 
