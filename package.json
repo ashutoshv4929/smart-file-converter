@@ -121,11 +121,3 @@
     "bufferutil": "^4.0.8"
   }
 }
-```
-
-I've made two key changes:
-
-1.  **Modified `scripts.build`**: Removed the `bash install-libreoffice.sh &&` part.
-2.  **Added Dependencies**: Included `sharp` in `dependencies` and `@types/sharp` in `devDependencies`.
-
-You can now replace the content of your `package.json` with the code above. After committing this change, your next deployment on Render should proceed past the build step successful
