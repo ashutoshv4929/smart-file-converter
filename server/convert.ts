@@ -24,6 +24,7 @@ async function textToDocx(text: string): Promise<Buffer> {
 
 // Utility: Convert text to PDF
 async function textToPdf(text: string): Promise<Uint8Array> {
+  console.log('textToPdf input:', text); // <-- Debug log
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595.28, 841.89]);
   const fontSize = 12;
@@ -50,10 +51,6 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
     let resultBuffer: Buffer | Uint8Array;
     let resultMime = 'application/octet-stream';
     let filename = path.parse(file.originalname).name + '_converted.' + targetFormat;
-    // Clean extracted text for empty/blank file issue
-    function sanitizeText(text: string) {
-      return (text || '').replace(/\u0000/g, '').trim();
-    }
 
     // Conversion logic
     if (conversionType === 'pdf-to-word') {
@@ -71,6 +68,7 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
       // DOCX to PDF
       const docxBuffer = fs.readFileSync(file.path);
       const { value: text } = await mammoth.extractRawText({ buffer: docxBuffer });
+      console.log('Extracted text from DOCX:', text); // <-- Debug log
       resultBuffer = await textToPdf(text);
       resultMime = 'application/pdf';
     } else if (conversionType === 'text-to-pdf') {
@@ -92,10 +90,10 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
       }
       const page = pdfDoc.addPage([image.width, image.height]);
       page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
-      resultBuffer = Buffer.from(await pdfDoc.save());
+      resultBuffer = await pdfDoc.save();
       resultMime = 'application/pdf';
     } else if (conversionType === 'ocr-extract') {
-      // OCR Extract (image to text/docx)
+      // OCR Extraction
       const imgBuffer = fs.readFileSync(file.path);
       const { data: { text } } = await Tesseract.recognize(imgBuffer, 'eng');
       if (targetFormat === 'docx') {
