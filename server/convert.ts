@@ -184,7 +184,7 @@ async function textToDocx(text: string): Promise<Buffer> {
  */
 async function textToPdf(text: string): Promise<Uint8Array> {
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
+    let page = pdfDoc.addPage([595.28, 841.89]); // A4 size
     const { width, height } = page.getSize();
     
     // Use a standard font
