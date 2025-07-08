@@ -42,8 +42,11 @@ async function convertWithLibreOffice(inputPath: string, outputPath: string, for
     // Read input file
     const inputBuffer = fs.readFileSync(inputPath);
     
+    // Determine output extension
+    const outputExt = format === 'pdf' ? '.pdf' : '.docx';
+    
     // Perform conversion
-    const outputBuffer = await convertAsync(inputBuffer, '.pdf', undefined);
+    const outputBuffer = await convertAsync(inputBuffer, outputExt, undefined);
     
     // Write output
     fs.writeFileSync(outputPath, outputBuffer);
