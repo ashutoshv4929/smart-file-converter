@@ -9,11 +9,46 @@ import { Document, Packer, Paragraph, TextRun } from 'docx';
 import Tesseract from 'tesseract.js';
 import axios from 'axios';
 import FormData from 'form-data';
+import { libreOfficeConvert } from './libreoffice-convert';
 
 const ILOVEPDF_API_KEY = 'secret_key_3a6626f95c00ef97e3cddfe6c802285b_6Va8Vb384c93499d48d08e9be6f70e8524696';
 
 async function wordToPdfWithILovePDF(inputPath: string, outputPath: string) {
-  throw new Error('wordToPdfWithILovePDF not implemented');
+  try {
+    const startRes = await axios.post(
+      'https://api.ilovepdf.com/v1/start/officepdf',
+      {},
+      { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+    );
+    console.log('start/officepdf status:', startRes.status, startRes.statusText);
+    const { server, task } = startRes.data;
+    
+    const form = new FormData();
+    form.append('task', task);
+    form.append('file', fs.createReadStream(inputPath), { filename: path.basename(inputPath) });
+    
+    const uploadRes = await axios.post(`https://${server}/v1/upload`, form, {
+      headers: form.getHeaders(),
+    });
+    console.log('upload status:', uploadRes.status, uploadRes.statusText);
+    
+    const processRes = await axios.get(`https://${server}/v1/process`, {
+      headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` },
+      params: { task }
+    });
+    console.log('process status:', processRes.status, processRes.statusText);
+    
+    const downloadRes = await axios.get(`https://${server}/v1/download/${task}`, {
+      responseType: 'arraybuffer',
+      headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` }
+    });
+    
+    fs.writeFileSync(outputPath, downloadRes.data);
+    console.log('File converted successfully:', outputPath);
+  } catch (err) {
+    console.error('Error in wordToPdfWithILovePDF:', err);
+    throw err;
+  }
 }
 
 async function pdfToWordWithILovePDF(inputPath: string, outputPath: string) {
@@ -149,7 +184,77 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
     let filename = path.parse(file.originalname).name + '_converted.' + targetFormat;
 
     // Conversion logic
-    if (conversionType === 'pdf-to-word') {
+    // LibreOffice high quality conversion (PDF <-> Word, PPT, Excel, etc.)
+    if (conversionType === 'pdf-to-word-libre') {
+      // PDF to DOCX using LibreOffice
+      const inputPath = file.path;
+      const outputDir = path.dirname(inputPath);
+      try {
+        const outputPath = await libreOfficeConvert(inputPath, outputDir, 'docx');
+        if (!fs.existsSync(outputPath)) {
+          console.error('DOCX file nahi mili:', outputPath);
+          return res.status(500).json({ message: 'DOCX file nahi mili (LibreOffice)' });
+        }
+        const stats = fs.statSync(outputPath);
+        if (stats.size === 0) {
+          console.error('DOCX file size 0 hai:', outputPath);
+          return res.status(500).json({ message: 'DOCX file size 0 hai (LibreOffice)' });
+        }
+        resultBuffer = fs.readFileSync(outputPath);
+        resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } catch (err) {
+        console.error('LibreOffice PDF to Word error:', err);
+        return res.status(500).json({ message: 'LibreOffice PDF to Word conversion failed', error: err.message });
+      }
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+    } else if (conversionType === 'word-to-pdf-libre') {
+      // DOCX to PDF using LibreOffice
+      const inputPath = file.path;
+      const outputDir = path.dirname(inputPath);
+      try {
+        const outputPath = await libreOfficeConvert(inputPath, outputDir, 'pdf');
+        if (!fs.existsSync(outputPath)) {
+          console.error('PDF file nahi mili:', outputPath);
+          return res.status(500).json({ message: 'PDF file nahi mili (LibreOffice)' });
+        }
+        const stats = fs.statSync(outputPath);
+        if (stats.size === 0) {
+          console.error('PDF file size 0 hai:', outputPath);
+          return res.status(500).json({ message: 'PDF file size 0 hai (LibreOffice)' });
+        }
+        resultBuffer = fs.readFileSync(outputPath);
+        resultMime = 'application/pdf';
+      } catch (err) {
+        console.error('LibreOffice Word to PDF error:', err);
+        return res.status(500).json({ message: 'LibreOffice Word to PDF conversion failed', error: err.message });
+      }
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+    } else if (conversionType === 'ppt-to-pdf-libre') {
+      // PPTX to PDF using LibreOffice
+      const inputPath = file.path;
+      const outputDir = path.dirname(inputPath);
+      try {
+        const outputPath = await libreOfficeConvert(inputPath, outputDir, 'pdf');
+        if (!fs.existsSync(outputPath)) {
+          console.error('PDF file nahi mili:', outputPath);
+          return res.status(500).json({ message: 'PDF file nahi mili (LibreOffice)' });
+        }
+        const stats = fs.statSync(outputPath);
+        if (stats.size === 0) {
+          console.error('PDF file size 0 hai:', outputPath);
+          return res.status(500).json({ message: 'PDF file size 0 hai (LibreOffice)' });
+        }
+        resultBuffer = fs.readFileSync(outputPath);
+        resultMime = 'application/pdf';
+      } catch (err) {
+        console.error('LibreOffice PPT to PDF error:', err);
+        return res.status(500).json({ message: 'LibreOffice PPT to PDF conversion failed', error: err.message });
+      }
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+    } else if (conversionType === 'pdf-to-word') {
       // PDF to DOCX using iLovePDF API
       const inputPath = file.path;
       const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.docx');
