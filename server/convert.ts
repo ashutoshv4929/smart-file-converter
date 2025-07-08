@@ -9,134 +9,181 @@ import { Document, Packer, Paragraph, TextRun } from 'docx';
 import Tesseract from 'tesseract.js';
 import axios from 'axios';
 import FormData from 'form-data';
+import dotenv from 'dotenv';
+dotenv.config();
 import { libreOfficeConvert } from './libreoffice-convert';
 
-const ILOVEPDF_API_KEY = 'secret_key_3a6626f95c00ef97e3cddfe6c802285b_6Va8Vb384c93499d48d08e9be6f70e8524696';
+const ILOVEPDF_API_KEY = process.env.ILOVEPDF_API_KEY || 'secret_key_3a6626f95c00ef97e3cddfe6c802285b_6Va8Vb384c93499d48d08e9be6f70e8524696';
+
+async function withRetry<T>(fn: () => Promise<T>, retries = 2, delay = 1000): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (retries <= 0) throw err;
+    await new Promise(res => setTimeout(res, delay));
+    return withRetry(fn, retries - 1, delay * 2);
+  }
+}
+
+function validateFileType(file: Express.Multer.File, allowedTypes: string[]) {
+  const ext = path.extname(file.originalname).toLowerCase().slice(1);
+  if (!allowedTypes.includes(ext)) {
+    throw new Error(`Unsupported file type: ${ext}. Allowed types: ${allowedTypes.join(', ')}`);
+  }
+}
 
 async function wordToPdfWithILovePDF(inputPath: string, outputPath: string) {
-  try {
-    const startRes = await axios.post(
-      'https://api.ilovepdf.com/v1/start/officepdf',
-      {},
-      { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-    );
-    console.log('start/officepdf status:', startRes.status, startRes.statusText);
-    const { server, task } = startRes.data;
-    
-    const form = new FormData();
-    form.append('task', task);
-    form.append('file', fs.createReadStream(inputPath), { filename: path.basename(inputPath) });
-    
-    const uploadRes = await axios.post(`https://${server}/v1/upload`, form, {
-      headers: form.getHeaders(),
-    });
-    console.log('upload status:', uploadRes.status, uploadRes.statusText);
-    
-    const processRes = await axios.get(`https://${server}/v1/process`, {
-      headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` },
-      params: { task }
-    });
-    console.log('process status:', processRes.status, processRes.statusText);
-    
-    const downloadRes = await axios.get(`https://${server}/v1/download/${task}`, {
-      responseType: 'arraybuffer',
-      headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` }
-    });
-    
-    fs.writeFileSync(outputPath, downloadRes.data);
-    console.log('File converted successfully:', outputPath);
-  } catch (err) {
-    console.error('Error in wordToPdfWithILovePDF:', err);
-    throw err;
-  }
+  return withRetry(async () => {
+    try {
+      const startRes = await axios.post(
+        'https://api.ilovepdf.com/v1/start/officepdf',
+        {},
+        { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+      );
+      console.log('start/officepdf status:', startRes.status, startRes.statusText);
+      const { server, task } = startRes.data;
+      
+      const form = new FormData();
+      form.append('task', task);
+      form.append('file', fs.createReadStream(inputPath), { filename: path.basename(inputPath) });
+      
+      const uploadRes = await axios.post(`https://${server}/v1/upload`, form, {
+        headers: form.getHeaders(),
+      });
+      console.log('upload status:', uploadRes.status, uploadRes.statusText);
+      
+      const processRes = await axios.get(`https://${server}/v1/process`, {
+        headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` },
+        params: { task }
+      });
+      console.log('process status:', processRes.status, processRes.statusText);
+      
+      const downloadRes = await axios.get(`https://${server}/v1/download/${task}`, {
+        responseType: 'arraybuffer',
+        headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` }
+      });
+      
+      fs.writeFileSync(outputPath, downloadRes.data);
+      console.log('File converted successfully:', outputPath);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        throw new Error('Invalid API key - please check your iLovePDF credentials');
+      }
+      if (err.response?.status === 429) {
+        throw new Error('API rate limit exceeded - please try again later');
+      }
+      throw new Error(`Conversion failed: ${err.response?.data?.error || err.message}`);
+    }
+  });
 }
 
 async function pdfToWordWithILovePDF(inputPath: string, outputPath: string) {
-  try {
-    const startRes = await axios.post(
-      'https://api.ilovepdf.com/v1/start/pdfword',
-      {},
-      { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-    );
-    console.log('start/pdfword status:', startRes.status, startRes.statusText);
-    const { server, task } = startRes.data;
-    const form = new FormData();
-    form.append('task', task);
-    form.append('file', fs.createReadStream(inputPath));
-    const uploadRes = await axios.post(
-      `https://${server}/v1/upload`,
-      form,
-      { headers: { ...form.getHeaders(), Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-    );
-    console.log('upload status:', uploadRes.status, uploadRes.statusText);
-    const processRes = await axios.post(
-      `https://${server}/v1/process`,
-      { task, tool: 'pdfword' },
-      { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-    );
-    console.log('process status:', processRes.status, processRes.statusText);
-    const downloadRes = await axios.get(
-      `https://${server}/v1/download/${task}`,
-      { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-    );
-    console.log('download status:', downloadRes.status, downloadRes.statusText);
-    if (downloadRes.headers['content-type'] !== 'application/pdf') {
-      console.error('Download response is not PDF:', downloadRes.headers);
+  return withRetry(async () => {
+    try {
+      const startRes = await axios.post(
+        'https://api.ilovepdf.com/v1/start/pdfword',
+        {},
+        { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+      );
+      console.log('start/pdfword status:', startRes.status, startRes.statusText);
+      
+      // Validate response data
+      if (!startRes.data || !startRes.data.server || !startRes.data.task) {
+        console.error('Invalid response from iLovePDF API:', startRes.data);
+        throw new Error('Invalid response from iLovePDF API: missing server or task');
+      }
+      
+      const { server, task } = startRes.data;
+      const form = new FormData();
+      form.append('task', task);
+      form.append('file', fs.createReadStream(inputPath));
+      const uploadRes = await axios.post(
+        `https://${server}/v1/upload`,
+        form,
+        { headers: { ...form.getHeaders(), Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+      );
+      console.log('upload status:', uploadRes.status, uploadRes.statusText);
+      const processRes = await axios.post(
+        `https://${server}/v1/process`,
+        { task, tool: 'pdfword' },
+        { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+      );
+      console.log('process status:', processRes.status, processRes.statusText);
+      const downloadRes = await axios.get(
+        `https://${server}/v1/download/${task}`,
+        { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+      );
+      console.log('download status:', downloadRes.status, downloadRes.statusText);
+      if (downloadRes.headers['content-type'] !== 'application/pdf') {
+        console.error('Download response is not PDF:', downloadRes.headers);
+      }
+      const writer = fs.createWriteStream(outputPath);
+      downloadRes.data.pipe(writer);
+      return new Promise<void>((resolve, reject) => {
+        writer.on('finish', () => resolve());
+        writer.on('error', reject);
+      });
+    } catch (err) {
+      if (err.response?.status === 401) {
+        throw new Error('Invalid API key - please check your iLovePDF credentials');
+      }
+      if (err.response?.status === 429) {
+        throw new Error('API rate limit exceeded - please try again later');
+      }
+      throw new Error(`Conversion failed: ${err.response?.data?.error || err.message}`);
     }
-    const writer = fs.createWriteStream(outputPath);
-    downloadRes.data.pipe(writer);
-    return new Promise<void>((resolve, reject) => {
-      writer.on('finish', () => resolve());
-      writer.on('error', reject);
-    });
-  } catch (error) {
-    console.error('Error in pdfToWordWithILovePDF:', error);
-    throw error;
-  }
+  });
 }
 
 async function imageToPdfWithILovePDF(inputPath: string, outputPath: string) {
-  try {
-    const startRes = await axios.post(
-      'https://api.ilovepdf.com/v1/start/imagepdf',
-      {},
-      { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-    );
-    console.log('start/imagepdf status:', startRes.status, startRes.statusText);
-    const { server, task } = startRes.data;
-    const form = new FormData();
-    form.append('task', task);
-    form.append('file', fs.createReadStream(inputPath));
-    const uploadRes = await axios.post(
-      `https://${server}/v1/upload`,
-      form,
-      { headers: { ...form.getHeaders(), Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-    );
-    console.log('upload status:', uploadRes.status, uploadRes.statusText);
-    const processRes = await axios.post(
-      `https://${server}/v1/process`,
-      { task, tool: 'imagepdf' },
-      { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-    );
-    console.log('process status:', processRes.status, processRes.statusText);
-    const downloadRes = await axios.get(
-      `https://${server}/v1/download/${task}`,
-      { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-    );
-    console.log('download status:', downloadRes.status, downloadRes.statusText);
-    if (downloadRes.headers['content-type'] !== 'application/pdf') {
-      console.error('Download response is not PDF:', downloadRes.headers);
+  return withRetry(async () => {
+    try {
+      const startRes = await axios.post(
+        'https://api.ilovepdf.com/v1/start/imagepdf',
+        {},
+        { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+      );
+      console.log('start/imagepdf status:', startRes.status, startRes.statusText);
+      const { server, task } = startRes.data;
+      const form = new FormData();
+      form.append('task', task);
+      form.append('file', fs.createReadStream(inputPath));
+      const uploadRes = await axios.post(
+        `https://${server}/v1/upload`,
+        form,
+        { headers: { ...form.getHeaders(), Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+      );
+      console.log('upload status:', uploadRes.status, uploadRes.statusText);
+      const processRes = await axios.post(
+        `https://${server}/v1/process`,
+        { task, tool: 'imagepdf' },
+        { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+      );
+      console.log('process status:', processRes.status, processRes.statusText);
+      const downloadRes = await axios.get(
+        `https://${server}/v1/download/${task}`,
+        { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+      );
+      console.log('download status:', downloadRes.status, downloadRes.statusText);
+      if (downloadRes.headers['content-type'] !== 'application/pdf') {
+        console.error('Download response is not PDF:', downloadRes.headers);
+      }
+      const writer = fs.createWriteStream(outputPath);
+      downloadRes.data.pipe(writer);
+      return new Promise<void>((resolve, reject) => {
+        writer.on('finish', () => resolve());
+        writer.on('error', reject);
+      });
+    } catch (err) {
+      if (err.response?.status === 401) {
+        throw new Error('Invalid API key - please check your iLovePDF credentials');
+      }
+      if (err.response?.status === 429) {
+        throw new Error('API rate limit exceeded - please try again later');
+      }
+      throw new Error(`Conversion failed: ${err.response?.data?.error || err.message}`);
     }
-    const writer = fs.createWriteStream(outputPath);
-    downloadRes.data.pipe(writer);
-    return new Promise<void>((resolve, reject) => {
-      writer.on('finish', () => resolve());
-      writer.on('error', reject);
-    });
-  } catch (error) {
-    console.error('imageToPdfWithILovePDF error:', error);
-    throw error;
-  }
+  });
 }
 
 const router = express.Router();
@@ -178,7 +225,18 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
   try {
     const { conversionType, targetFormat } = req.body;
     const file = req.file;
+    
     if (!file) return res.status(400).json({ message: 'No file uploaded' });
+    
+    // Validate file type based on conversion
+    if (conversionType === 'word-to-pdf') {
+      validateFileType(file, ['doc', 'docx', 'odt']);
+    } else if (conversionType === 'pdf-to-word') {
+      validateFileType(file, ['pdf']);
+    } else if (conversionType === 'image-to-pdf') {
+      validateFileType(file, ['jpg', 'jpeg', 'png', 'gif', 'bmp']);
+    }
+    
     let resultBuffer: Buffer | Uint8Array;
     let resultMime = 'application/octet-stream';
     let filename = path.parse(file.originalname).name + '_converted.' + targetFormat;
@@ -359,8 +417,11 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
     res.send(resultBuffer);
     fs.unlinkSync(file.path); // Clean up uploaded file
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Conversion failed', error: err.message });
+    res.status(500).json({ 
+      message: 'Conversion failed', 
+      error: err.message,
+      solution: err.solution || 'Please try again or contact support'
+    });
   }
 });
 
