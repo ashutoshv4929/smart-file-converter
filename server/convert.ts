@@ -425,6 +425,35 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
   }
 });
 
+// Health check endpoint for iLovePDF API
+router.get('/api/health', async (req: Request, res: Response) => {
+  try {
+    const testRes = await axios.get('https://api.ilovepdf.com/v1/info', {
+      headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` }
+    });
+    
+    if (testRes.status === 200) {
+      res.json({ 
+        status: 'active', 
+        plan: testRes.data.plan,
+        remaining: testRes.data.remaining
+      });
+    } else {
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'API returned non-200 status',
+        statusCode: testRes.status
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ 
+      status: 'error', 
+      message: err.message,
+      response: err.response?.data
+    });
+  }
+});
+
 // Helper: Extract text from PDF
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   // Use pdf-parse for accurate PDF text extraction
