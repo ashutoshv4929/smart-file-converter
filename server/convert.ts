@@ -153,51 +153,97 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
       // PDF to DOCX using iLovePDF API
       const inputPath = file.path;
       const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.docx');
-      await pdfToWordWithILovePDF(inputPath, outputPath);
-      resultBuffer = fs.readFileSync(outputPath);
-      resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      fs.unlinkSync(outputPath);
+      try {
+        await pdfToWordWithILovePDF(inputPath, outputPath);
+        if (!fs.existsSync(outputPath)) {
+          console.error('DOCX file nahi mili:', outputPath);
+          return res.status(500).json({ message: 'DOCX file nahi mili' });
+        }
+        const stats = fs.statSync(outputPath);
+        if (stats.size === 0) {
+          console.error('DOCX file size 0 hai:', outputPath);
+          return res.status(500).json({ message: 'DOCX file size 0 hai' });
+        }
+        resultBuffer = fs.readFileSync(outputPath);
+        resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } finally {
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+      }
     } else if (conversionType === 'word-to-pdf') {
       // DOCX to PDF using iLovePDF API
       const inputPath = file.path;
       const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.pdf');
-      await wordToPdfWithILovePDF(inputPath, outputPath);
-      if (!fs.existsSync(outputPath)) {
-        console.error('PDF file nahi mili:', outputPath);
-        return res.status(500).json({ message: 'PDF file nahi mili' });
+      try {
+        await wordToPdfWithILovePDF(inputPath, outputPath);
+        if (!fs.existsSync(outputPath)) {
+          console.error('PDF file nahi mili:', outputPath);
+          return res.status(500).json({ message: 'PDF file nahi mili' });
+        }
+        const stats = fs.statSync(outputPath);
+        if (stats.size === 0) {
+          console.error('PDF file size 0 hai:', outputPath);
+          return res.status(500).json({ message: 'PDF file size 0 hai' });
+        }
+        resultBuffer = fs.readFileSync(outputPath);
+        resultMime = 'application/pdf';
+      } finally {
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
       }
-      const stats = fs.statSync(outputPath);
-      console.log('PDF file size (bytes):', stats.size);
-      if (stats.size === 0) {
-        console.error('PDF file size 0 hai:', outputPath);
-        return res.status(500).json({ message: 'PDF file size 0 hai' });
-      }
-      resultBuffer = fs.readFileSync(outputPath);
-      resultMime = 'application/pdf';
-      fs.unlinkSync(outputPath); // Clean up
     } else if (conversionType === 'text-to-pdf') {
       // TXT to PDF
-      const text = fs.readFileSync(file.path, 'utf-8');
-      resultBuffer = await textToPdf(text);
-      resultMime = 'application/pdf';
+      try {
+        const text = fs.readFileSync(file.path, 'utf-8');
+        resultBuffer = await textToPdf(text);
+        if (!resultBuffer || resultBuffer.length === 0) {
+          return res.status(500).json({ message: 'PDF conversion failed (empty output)' });
+        }
+        resultMime = 'application/pdf';
+      } catch (err) {
+        console.error('Text to PDF conversion error:', err);
+        return res.status(500).json({ message: 'Text to PDF conversion failed', error: err.message });
+      }
     } else if (conversionType === 'image-to-pdf') {
       // Image to PDF using iLovePDF API
       const inputPath = file.path;
       const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.pdf');
-      await imageToPdfWithILovePDF(inputPath, outputPath);
-      resultBuffer = fs.readFileSync(outputPath);
-      resultMime = 'application/pdf';
-      fs.unlinkSync(outputPath);
+      try {
+        await imageToPdfWithILovePDF(inputPath, outputPath);
+        if (!fs.existsSync(outputPath)) {
+          console.error('PDF file nahi mili:', outputPath);
+          return res.status(500).json({ message: 'PDF file nahi mili' });
+        }
+        const stats = fs.statSync(outputPath);
+        if (stats.size === 0) {
+          console.error('PDF file size 0 hai:', outputPath);
+          return res.status(500).json({ message: 'PDF file size 0 hai' });
+        }
+        resultBuffer = fs.readFileSync(outputPath);
+        resultMime = 'application/pdf';
+      } finally {
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+      }
     } else if (conversionType === 'ocr-extract') {
-      // OCR Extraction
-      const imgBuffer = fs.readFileSync(file.path);
-      const { data: { text } } = await Tesseract.recognize(imgBuffer, 'eng');
-      if (targetFormat === 'docx') {
-        resultBuffer = await textToDocx(text);
-        resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      } else {
-        resultBuffer = Buffer.from(text, 'utf-8');
-        resultMime = 'text/plain';
+      // OCR Extraction with basic preprocessing
+      const sharp = require('sharp');
+      let imgBuffer = fs.readFileSync(file.path);
+      try {
+        // Basic preprocessing: grayscale + resize (if large)
+        imgBuffer = await sharp(imgBuffer).grayscale().toBuffer();
+      } catch (err) {
+        console.warn('Image preprocessing failed, proceeding with original image. Error:', err.message);
+      }
+      try {
+        const { data: { text } } = await Tesseract.recognize(imgBuffer, 'eng');
+        if (targetFormat === 'docx') {
+          resultBuffer = await textToDocx(text);
+          resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } else {
+          resultBuffer = Buffer.from(text, 'utf-8');
+          resultMime = 'text/plain';
+        }
+      } catch (err) {
+        console.error('OCR extraction failed:', err);
+        return res.status(500).json({ message: 'OCR extraction failed', error: err.message });
       }
     } else {
       return res.status(400).json({ message: 'Unsupported conversion type' });
