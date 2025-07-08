@@ -11,7 +11,9 @@ import axios from 'axios';
 import FormData from 'form-data';
 import dotenv from 'dotenv';
 dotenv.config();
-import { libreOfficeConvert } from './libreoffice-convert';
+import libreOfficeConvert from 'libreoffice-convert';
+import { promisify } from 'util';
+const convertAsync = promisify(libreOfficeConvert.convert);
 
 const ILOVEPDF_API_KEY = process.env.ILOVEPDF_API_KEY || 'secret_key_3a6626f95c00ef97e3cddfe6c802285b_6Va8Vb384c93499d48d08e9be6f70e8524696';
 
@@ -37,11 +39,14 @@ async function convertWithLibreOffice(inputPath: string, outputPath: string, for
   try {
     console.log(`Starting LibreOffice conversion: ${inputPath} -> ${outputPath} (${format})`);
     
-    await libreOfficeConvert({
-      input: inputPath,
-      output: outputPath,
-      format: format
-    });
+    // Read input file
+    const inputBuffer = fs.readFileSync(inputPath);
+    
+    // Perform conversion
+    const outputBuffer = await convertAsync(inputBuffer, '.pdf', undefined);
+    
+    // Write output
+    fs.writeFileSync(outputPath, outputBuffer);
     
     console.log(`LibreOffice conversion completed successfully`);
     
