@@ -7,6 +7,136 @@ import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import Tesseract from 'tesseract.js';
+import axios from 'axios';
+import FormData from 'form-data';
+
+const ILOVEPDF_API_KEY = 'secret_key_3a6626f95c00ef97e3cddfe6c802285b_6Va8Vb384c93499d48d08e9be6f70e8524696';
+
+async function wordToPdfWithILovePDF(inputPath: string, outputPath: string) {
+  // (as before)
+}
+
+// PDF to Word (DOCX) conversion using iLovePDF
+async function pdfToWordWithILovePDF(inputPath: string, outputPath: string) {
+  try {
+    const startRes = await axios.post(
+      'https://api.ilovepdf.com/v1/start/pdfword',
+      {},
+      { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+    );
+    console.log('start/pdfword status:', startRes.status, startRes.statusText);
+    const { server, task } = startRes.data;
+    const form = new FormData();
+    form.append('task', task);
+    form.append('file', fs.createReadStream(inputPath));
+    const uploadRes = await axios.post(
+      `https://${server}/v1/upload`,
+      form,
+      { headers: { ...form.getHeaders(), Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+    );
+    console.log('upload status:', uploadRes.status, uploadRes.statusText);
+    const processRes = await axios.post(
+      `https://${server}/v1/process`,
+      { task, tool: 'pdfword' },
+      { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+    );
+    console.log('process status:', processRes.status, processRes.statusText);
+    const downloadRes = await axios.get(
+      `https://${server}/v1/download/${task}`,
+      { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+    );
+    console.log('download status:', downloadRes.status, downloadRes.statusText);
+    if (downloadRes.headers['content-type'] !== 'application/pdf') {
+      console.error('Download response is not PDF:', downloadRes.headers);
+    }
+    const writer = fs.createWriteStream(outputPath);
+    downloadRes.data.pipe(writer);
+    return new Promise<void>((resolve, reject) => {
+      writer.on('finish', () => resolve());
+      writer.on('error', reject);
+    });
+}
+
+// Image to PDF conversion using iLovePDF
+async function imageToPdfWithILovePDF(inputPath: string, outputPath: string) {
+  try {
+    const startRes = await axios.post(
+      'https://api.ilovepdf.com/v1/start/imagepdf',
+      {},
+      { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+    );
+    console.log('start/imagepdf status:', startRes.status, startRes.statusText);
+    const { server, task } = startRes.data;
+    const form = new FormData();
+    form.append('task', task);
+    form.append('file', fs.createReadStream(inputPath));
+    const uploadRes = await axios.post(
+      `https://${server}/v1/upload`,
+      form,
+      { headers: { ...form.getHeaders(), Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+    );
+    console.log('upload status:', uploadRes.status, uploadRes.statusText);
+    const processRes = await axios.post(
+      `https://${server}/v1/process`,
+      { task, tool: 'imagepdf' },
+      { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+    );
+    console.log('process status:', processRes.status, processRes.statusText);
+    const downloadRes = await axios.get(
+      `https://${server}/v1/download/${task}`,
+      { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+    );
+    console.log('download status:', downloadRes.status, downloadRes.statusText);
+    if (downloadRes.headers['content-type'] !== 'application/pdf') {
+      console.error('Download response is not PDF:', downloadRes.headers);
+    }
+    const writer = fs.createWriteStream(outputPath);
+    downloadRes.data.pipe(writer);
+    return new Promise<void>((resolve, reject) => {
+      writer.on('finish', () => resolve());
+      writer.on('error', reject);
+    });
+}
+
+  // 1. Start task
+  const startRes = await axios.post(
+    'https://api.ilovepdf.com/v1/start/officepdf',
+    {},
+    { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+  );
+  const { server, task } = startRes.data;
+
+  // 2. Upload DOCX
+  const form = new FormData();
+  form.append('task', task);
+  form.append('file', fs.createReadStream(inputPath));
+  await axios.post(
+    `https://${server}/v1/upload`,
+    form,
+    { headers: { ...form.getHeaders(), Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+  );
+
+  // 3. Process
+  await axios.post(
+    `https://${server}/v1/process`,
+    { task, tool: 'officepdf' },
+    { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+  );
+
+  // 4. Download PDF
+  const downloadRes = await axios.get(
+    `https://${server}/v1/download/${task}`,
+    { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
+  );
+  const writer = fs.createWriteStream(outputPath);
+  downloadRes.data.pipe(writer);
+
+  return new Promise<void>((resolve, reject) => {
+    writer.on('finish', () => resolve());
+    writer.on('error', reject);
+  });
+}
+
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
@@ -54,44 +184,44 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
 
     // Conversion logic
     if (conversionType === 'pdf-to-word') {
-      // PDF to DOCX or TXT
-      const pdfBuffer = fs.readFileSync(file.path);
-      const text = await extractTextFromPdf(pdfBuffer);
-      if (targetFormat === 'docx') {
-        resultBuffer = await textToDocx(text);
-        resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      } else {
-        resultBuffer = Buffer.from(text, 'utf-8');
-        resultMime = 'text/plain';
-      }
+      // PDF to DOCX using iLovePDF API
+      const inputPath = file.path;
+      const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.docx');
+      await pdfToWordWithILovePDF(inputPath, outputPath);
+      resultBuffer = fs.readFileSync(outputPath);
+      resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      fs.unlinkSync(outputPath);
     } else if (conversionType === 'word-to-pdf') {
-      // DOCX to PDF
-      const docxBuffer = fs.readFileSync(file.path);
-      const { value: text } = await mammoth.extractRawText({ buffer: docxBuffer });
-      console.log('Extracted text from DOCX:', text); // <-- Debug log
-      resultBuffer = await textToPdf(text);
+      // DOCX to PDF using iLovePDF API
+      const inputPath = file.path;
+      const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.pdf');
+      await wordToPdfWithILovePDF(inputPath, outputPath);
+      if (!fs.existsSync(outputPath)) {
+        console.error('PDF file nahi mili:', outputPath);
+        return res.status(500).json({ message: 'PDF file nahi mili' });
+      }
+      const stats = fs.statSync(outputPath);
+      console.log('PDF file size (bytes):', stats.size);
+      if (stats.size === 0) {
+        console.error('PDF file size 0 hai:', outputPath);
+        return res.status(500).json({ message: 'PDF file size 0 hai' });
+      }
+      resultBuffer = fs.readFileSync(outputPath);
       resultMime = 'application/pdf';
+      fs.unlinkSync(outputPath); // Clean up
     } else if (conversionType === 'text-to-pdf') {
       // TXT to PDF
       const text = fs.readFileSync(file.path, 'utf-8');
       resultBuffer = await textToPdf(text);
       resultMime = 'application/pdf';
     } else if (conversionType === 'image-to-pdf') {
-      // Image to PDF
-      const pdfDoc = await PDFDocument.create();
-      const imgBuffer = fs.readFileSync(file.path);
-      let image;
-      if (file.mimetype === 'image/jpeg') {
-        image = await pdfDoc.embedJpg(imgBuffer);
-      } else if (file.mimetype === 'image/png') {
-        image = await pdfDoc.embedPng(imgBuffer);
-      } else {
-        throw new Error('Unsupported image format');
-      }
-      const page = pdfDoc.addPage([image.width, image.height]);
-      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
-      resultBuffer = await pdfDoc.save();
+      // Image to PDF using iLovePDF API
+      const inputPath = file.path;
+      const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.pdf');
+      await imageToPdfWithILovePDF(inputPath, outputPath);
+      resultBuffer = fs.readFileSync(outputPath);
       resultMime = 'application/pdf';
+      fs.unlinkSync(outputPath);
     } else if (conversionType === 'ocr-extract') {
       // OCR Extraction
       const imgBuffer = fs.readFileSync(file.path);
