@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { PDFDocument } from 'pdf-lib';
+import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import Tesseract from 'tesseract.js';
@@ -49,6 +50,10 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
     let resultBuffer: Buffer | Uint8Array;
     let resultMime = 'application/octet-stream';
     let filename = path.parse(file.originalname).name + '_converted.' + targetFormat;
+    // Clean extracted text for empty/blank file issue
+    function sanitizeText(text: string) {
+      return (text || '').replace(/\u0000/g, '').trim();
+    }
 
     // Conversion logic
     if (conversionType === 'pdf-to-word') {
@@ -116,14 +121,9 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
 
 // Helper: Extract text from PDF
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  // For simplicity, use pdf-lib and extract raw text (improve with pdf-parse if needed)
-  const pdfDoc = await PDFDocument.load(buffer);
-  let text = '';
-  const pages = pdfDoc.getPages();
-  for (const page of pages) {
-    text += page.getTextContent ? await page.getTextContent() : '';
-  }
-  return text;
+  // Use pdf-parse for accurate PDF text extraction
+  const data = await pdfParse(buffer);
+  return data.text;
 }
 
 export default router;
