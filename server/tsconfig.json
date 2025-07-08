@@ -4,6 +4,10 @@
     "module": "commonjs",
     "outDir": "./dist",
     "rootDir": ".",
+    "baseUrl": "./",
+    "paths": {
+      "@shared/*": ["../shared/*"]
+    },
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
