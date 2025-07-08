@@ -32,107 +32,19 @@ function validateFileType(file: Express.Multer.File, allowedTypes: string[]) {
   }
 }
 
-async function wordToPdfWithILovePDF(inputPath: string, outputPath: string) {
-  return withRetry(async () => {
-    try {
-      const startRes = await axios.post(
-        'https://api.ilovepdf.com/v1/start/officepdf',
-        {},
-        { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-      );
-      console.log('start/officepdf status:', startRes.status, startRes.statusText);
-      const { server, task } = startRes.data;
-      
-      const form = new FormData();
-      form.append('task', task);
-      form.append('file', fs.createReadStream(inputPath), { filename: path.basename(inputPath) });
-      
-      const uploadRes = await axios.post(`https://${server}/v1/upload`, form, {
-        headers: form.getHeaders(),
-      });
-      console.log('upload status:', uploadRes.status, uploadRes.statusText);
-      
-      const processRes = await axios.get(`https://${server}/v1/process`, {
-        headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` },
-        params: { task }
-      });
-      console.log('process status:', processRes.status, processRes.statusText);
-      
-      const downloadRes = await axios.get(`https://${server}/v1/download/${task}`, {
-        responseType: 'arraybuffer',
-        headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` }
-      });
-      
-      fs.writeFileSync(outputPath, downloadRes.data);
-      console.log('File converted successfully:', outputPath);
-    } catch (err) {
-      if (err.response?.status === 401) {
-        throw new Error('Invalid API key - please check your iLovePDF credentials');
-      }
-      if (err.response?.status === 429) {
-        throw new Error('API rate limit exceeded - please try again later');
-      }
-      throw new Error(`Conversion failed: ${err.response?.data?.error || err.message}`);
-    }
-  });
-}
-
-async function pdfToWordWithILovePDF(inputPath: string, outputPath: string) {
-  return withRetry(async () => {
-    try {
-      const startRes = await axios.post(
-        'https://api.ilovepdf.com/v1/start/pdfword',
-        {},
-        { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-      );
-      console.log('start/pdfword status:', startRes.status, startRes.statusText);
-      
-      // Validate response data
-      if (!startRes.data || !startRes.data.server || !startRes.data.task) {
-        console.error('Invalid response from iLovePDF API:', startRes.data);
-        throw new Error('Invalid response from iLovePDF API: missing server or task');
-      }
-      
-      const { server, task } = startRes.data;
-      const form = new FormData();
-      form.append('task', task);
-      form.append('file', fs.createReadStream(inputPath));
-      const uploadRes = await axios.post(
-        `https://${server}/v1/upload`,
-        form,
-        { headers: { ...form.getHeaders(), Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-      );
-      console.log('upload status:', uploadRes.status, uploadRes.statusText);
-      const processRes = await axios.post(
-        `https://${server}/v1/process`,
-        { task, tool: 'pdfword' },
-        { headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-      );
-      console.log('process status:', processRes.status, processRes.statusText);
-      const downloadRes = await axios.get(
-        `https://${server}/v1/download/${task}`,
-        { responseType: 'stream', headers: { Authorization: `Bearer ${ILOVEPDF_API_KEY}` } }
-      );
-      console.log('download status:', downloadRes.status, downloadRes.statusText);
-      if (downloadRes.headers['content-type'] !== 'application/pdf') {
-        console.error('Download response is not PDF:', downloadRes.headers);
-      }
-      const writer = fs.createWriteStream(outputPath);
-      downloadRes.data.pipe(writer);
-      return new Promise<void>((resolve, reject) => {
-        writer.on('finish', () => resolve());
-        writer.on('error', reject);
-      });
-    } catch (err) {
-      if (err.response?.status === 401) {
-        throw new Error('Invalid API key - please check your iLovePDF credentials');
-      }
-      if (err.response?.status === 429) {
-        throw new Error('API rate limit exceeded - please try again later');
-      }
-      throw new Error(`Conversion failed: ${err.response?.data?.error || err.message}`);
-    }
-  });
+// Use LibreOffice for document conversion
+async function convertWithLibreOffice(inputPath: string, outputPath: string, format: string) {
+  try {
+    await libreOfficeConvert({
+      input: inputPath,
+      output: outputPath,
+      format: format
+    });
+    console.log(`File converted successfully to ${format}: ${outputPath}`);
+  } catch (err) {
+    console.error('LibreOffice conversion error:', err);
+    throw new Error(`Conversion failed: ${err.message}`);
+  }
 }
 
 async function imageToPdfWithILovePDF(inputPath: string, outputPath: string) {
@@ -186,9 +98,6 @@ async function imageToPdfWithILovePDF(inputPath: string, outputPath: string) {
   });
 }
 
-const router = express.Router();
-const upload = multer({ dest: 'uploads/' });
-
 // Utility: Convert text to DOCX
 async function textToDocx(text: string): Promise<Buffer> {
   const doc = new Document({
@@ -220,6 +129,9 @@ async function textToPdf(text: string): Promise<Uint8Array> {
   return await pdfDoc.save();
 }
 
+const router = express.Router();
+const upload = multer({ dest: 'uploads/' });
+
 // Main conversion endpoint
 router.post('/api/convert', upload.single('file'), async (req: Request, res: Response) => {
   try {
@@ -242,102 +154,23 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
     let filename = path.parse(file.originalname).name + '_converted.' + targetFormat;
 
     // Conversion logic
-    // LibreOffice high quality conversion (PDF <-> Word, PPT, Excel, etc.)
-    if (conversionType === 'pdf-to-word-libre') {
-      // PDF to DOCX using LibreOffice
-      const inputPath = file.path;
-      const outputDir = path.dirname(inputPath);
-      try {
-        const outputPath = await libreOfficeConvert(inputPath, outputDir, 'docx');
-        if (!fs.existsSync(outputPath)) {
-          console.error('DOCX file nahi mili:', outputPath);
-          return res.status(500).json({ message: 'DOCX file nahi mili (LibreOffice)' });
-        }
-        const stats = fs.statSync(outputPath);
-        if (stats.size === 0) {
-          console.error('DOCX file size 0 hai:', outputPath);
-          return res.status(500).json({ message: 'DOCX file size 0 hai (LibreOffice)' });
-        }
-        resultBuffer = fs.readFileSync(outputPath);
-        resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      } catch (err) {
-        console.error('LibreOffice PDF to Word error:', err);
-        return res.status(500).json({ message: 'LibreOffice PDF to Word conversion failed', error: err.message });
-      }
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-    } else if (conversionType === 'word-to-pdf-libre') {
-      // DOCX to PDF using LibreOffice
-      const inputPath = file.path;
-      const outputDir = path.dirname(inputPath);
-      try {
-        const outputPath = await libreOfficeConvert(inputPath, outputDir, 'pdf');
-        if (!fs.existsSync(outputPath)) {
-          console.error('PDF file nahi mili:', outputPath);
-          return res.status(500).json({ message: 'PDF file nahi mili (LibreOffice)' });
-        }
-        const stats = fs.statSync(outputPath);
-        if (stats.size === 0) {
-          console.error('PDF file size 0 hai:', outputPath);
-          return res.status(500).json({ message: 'PDF file size 0 hai (LibreOffice)' });
-        }
-        resultBuffer = fs.readFileSync(outputPath);
-        resultMime = 'application/pdf';
-      } catch (err) {
-        console.error('LibreOffice Word to PDF error:', err);
-        return res.status(500).json({ message: 'LibreOffice Word to PDF conversion failed', error: err.message });
-      }
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-    } else if (conversionType === 'ppt-to-pdf-libre') {
-      // PPTX to PDF using LibreOffice
-      const inputPath = file.path;
-      const outputDir = path.dirname(inputPath);
-      try {
-        const outputPath = await libreOfficeConvert(inputPath, outputDir, 'pdf');
-        if (!fs.existsSync(outputPath)) {
-          console.error('PDF file nahi mili:', outputPath);
-          return res.status(500).json({ message: 'PDF file nahi mili (LibreOffice)' });
-        }
-        const stats = fs.statSync(outputPath);
-        if (stats.size === 0) {
-          console.error('PDF file size 0 hai:', outputPath);
-          return res.status(500).json({ message: 'PDF file size 0 hai (LibreOffice)' });
-        }
-        resultBuffer = fs.readFileSync(outputPath);
-        resultMime = 'application/pdf';
-      } catch (err) {
-        console.error('LibreOffice PPT to PDF error:', err);
-        return res.status(500).json({ message: 'LibreOffice PPT to PDF conversion failed', error: err.message });
-      }
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+    if (conversionType === 'word-to-pdf') {
+      const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.pdf');
+      await convertWithLibreOffice(file.path, outputPath, 'pdf');
+      resultBuffer = fs.readFileSync(outputPath);
+      resultMime = 'application/pdf';
+      filename = path.parse(file.originalname).name + '_converted.pdf';
     } else if (conversionType === 'pdf-to-word') {
-      // PDF to DOCX using iLovePDF API
-      const inputPath = file.path;
       const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.docx');
-      try {
-        await pdfToWordWithILovePDF(inputPath, outputPath);
-        if (!fs.existsSync(outputPath)) {
-          console.error('DOCX file nahi mili:', outputPath);
-          return res.status(500).json({ message: 'DOCX file nahi mili' });
-        }
-        const stats = fs.statSync(outputPath);
-        if (stats.size === 0) {
-          console.error('DOCX file size 0 hai:', outputPath);
-          return res.status(500).json({ message: 'DOCX file size 0 hai' });
-        }
-        resultBuffer = fs.readFileSync(outputPath);
-        resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      } finally {
-        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-      }
-    } else if (conversionType === 'word-to-pdf') {
-      // DOCX to PDF using iLovePDF API
+      await convertWithLibreOffice(file.path, outputPath, 'docx');
+      resultBuffer = fs.readFileSync(outputPath);
+      resultMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      filename = path.parse(file.originalname).name + '_converted.docx';
+    } else if (conversionType === 'image-to-pdf') {
       const inputPath = file.path;
       const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.pdf');
       try {
-        await wordToPdfWithILovePDF(inputPath, outputPath);
+        await imageToPdfWithILovePDF(inputPath, outputPath);
         if (!fs.existsSync(outputPath)) {
           console.error('PDF file nahi mili:', outputPath);
           return res.status(500).json({ message: 'PDF file nahi mili' });
@@ -364,26 +197,6 @@ router.post('/api/convert', upload.single('file'), async (req: Request, res: Res
       } catch (err) {
         console.error('Text to PDF conversion error:', err);
         return res.status(500).json({ message: 'Text to PDF conversion failed', error: err.message });
-      }
-    } else if (conversionType === 'image-to-pdf') {
-      // Image to PDF using iLovePDF API
-      const inputPath = file.path;
-      const outputPath = path.join('uploads', path.parse(file.originalname).name + '_converted.pdf');
-      try {
-        await imageToPdfWithILovePDF(inputPath, outputPath);
-        if (!fs.existsSync(outputPath)) {
-          console.error('PDF file nahi mili:', outputPath);
-          return res.status(500).json({ message: 'PDF file nahi mili' });
-        }
-        const stats = fs.statSync(outputPath);
-        if (stats.size === 0) {
-          console.error('PDF file size 0 hai:', outputPath);
-          return res.status(500).json({ message: 'PDF file size 0 hai' });
-        }
-        resultBuffer = fs.readFileSync(outputPath);
-        resultMime = 'application/pdf';
-      } finally {
-        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
       }
     } else if (conversionType === 'ocr-extract') {
       // OCR Extraction with basic preprocessing
