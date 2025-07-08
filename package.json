@@ -119,6 +119,3 @@
     "bufferutil": "^4.0.8"
   }
 }
-```
-
-I have updated the `package.json` in the Canvas with the correct, clean code. After you replace the file content and commit the change, please proceed with the other steps I mentioned. This will fix the probl
