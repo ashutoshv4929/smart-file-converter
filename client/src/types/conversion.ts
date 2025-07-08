@@ -372,5 +372,3 @@ app.use(router);
 
 // Export the app for use in a server file or for testing
 export default app;
-
-export type ConversionType = 'pdf-to-word' | 'pdf-to-excel' | 'pdf-to-ppt' | 'pdf-to-jpg' | 'pdf-to-text' | 'word-to-pdf' | 'excel-to-pdf' | 'ppt-to-pdf' | 'jpg-to-pdf' | 'text-to-pdf';
