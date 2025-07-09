@@ -4,12 +4,17 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import dotenv from 'dotenv';
 import libre from 'libreoffice-convert';
-import { promisify } from 'util';
 
 // Load environment variables from .env file
 dotenv.config();
 
-const libreConvert = promisify(libre.convert);
+// promisify का alternative implementation
+const libreConvert = (input: Buffer, ext: string) => 
+  new Promise<Buffer>((resolve, reject) => {
+    libre.convert(input, ext, (err: Error|null, done: Buffer) => 
+      err ? reject(err) : resolve(done)
+    );
+  });
 
 // Ensure uploads directory exists
 async function ensureUploadsDir() {
@@ -39,7 +44,7 @@ ensureUploadsDir().then(() => {
       const input = await fs.readFile(inputPath);
       console.log(`Read input file (${input.length} bytes)`);
 
-      const output = await libreConvert(input, `.${outputFormat}`, undefined);
+      const output = await libreConvert(input, `.${outputFormat}`);
       console.log(`Conversion successful (${output.length} bytes output)`);
 
       const outputFilename = `${path.basename(inputPath, path.extname(inputPath))}.${outputFormat}`;
