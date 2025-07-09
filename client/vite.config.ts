@@ -4,12 +4,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
+    outDir: '../dist/client',
+    emptyOutDir: true,
     rollupOptions: {
-      external: [
-        'fs', 'path', 'http', 
-        'child_process', 'crypto',
-        'os', 'stream', 'zlib'
-      ]
+      external: ['fs', 'path', 'util', 'child_process']
     }
   }
 })
