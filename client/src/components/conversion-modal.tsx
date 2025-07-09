@@ -2,7 +2,7 @@ import React, { useState, ForwardRefExoticComponent, RefAttributes } from 'react
 import { X, Upload, FileText, File, FileImage, FileInput, FileOutput, Image as ImageIcon, Text, FileType, FileJson } from 'lucide-react';
 import type { LucideIcon, LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { ConversionType } from '../../types/conversion';
+import type { ConversionType } from '@/types/conversion';
 
 interface ConversionModalProps {
   isOpen: boolean;

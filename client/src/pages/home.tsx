@@ -1,20 +1,11 @@
-import { useState, useEffect } from 'react';
-import { 
-  FileText, 
-  File, 
-  Images, 
-  Type, 
-  Camera, 
-  Layers, 
-  Share, 
-  Trash2 
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, FileImage, File, Upload, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ConversionType, ConversionProgress, ConversionStats, RecentFile } from '@/types/conversion';
 import { ConversionModal } from '@/components/conversion-modal';
 import { ProgressModal } from '@/components/progress-modal';
 import { FileConverter } from '@/lib/file-converter';
 import { LocalStorage } from '@/lib/storage';
-import { ConversionType, ConversionProgress, ConversionStats, RecentFile } from '@/types/conversion';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -205,7 +196,7 @@ export default function Home() {
             className="bg-surface dark:bg-gray-800 rounded-2xl p-4 shadow-md border border-gray-100 dark:border-gray-700 active:scale-95 transition-transform cursor-pointer"
           >
             <div className="bg-green-100 dark:bg-green-900/30 w-12 h-12 rounded-xl flex items-center justify-center mb-3">
-              <Images className="text-green-600 dark:text-green-400" size={20} />
+              <FileImage className="text-green-600 dark:text-green-400" size={20} />
             </div>
             <h4 className="font-medium text-sm mb-1">Image to PDF</h4>
             <p className="text-xs text-gray-600 dark:text-gray-400">Multi-page PDF</p>
@@ -216,7 +207,7 @@ export default function Home() {
             className="bg-surface dark:bg-gray-800 rounded-2xl p-4 shadow-md border border-gray-100 dark:border-gray-700 active:scale-95 transition-transform cursor-pointer"
           >
             <div className="bg-purple-100 dark:bg-purple-900/30 w-12 h-12 rounded-xl flex items-center justify-center mb-3">
-              <Type className="text-purple-600 dark:text-purple-400" size={20} />
+              <FileText className="text-purple-600 dark:text-purple-400" size={20} />
             </div>
             <h4 className="font-medium text-sm mb-1">Extract Text</h4>
             <p className="text-xs text-gray-600 dark:text-gray-400">OCR from images</p>
@@ -231,7 +222,7 @@ export default function Home() {
         <div className="space-y-3">
           <div className="bg-surface dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center space-x-4 active:bg-gray-50 dark:active:bg-gray-700 transition-colors cursor-pointer">
             <div className="bg-orange-100 dark:bg-orange-900/30 w-10 h-10 rounded-lg flex items-center justify-center">
-              <Camera className="text-orange-600 dark:text-orange-400" size={16} />
+              <FileImage className="text-orange-600 dark:text-orange-400" size={16} />
             </div>
             <div className="flex-1">
               <h4 className="font-medium text-sm">Scan Document</h4>
@@ -242,7 +233,7 @@ export default function Home() {
 
           <div className="bg-surface dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center space-x-4 active:bg-gray-50 dark:active:bg-gray-700 transition-colors cursor-pointer">
             <div className="bg-indigo-100 dark:bg-indigo-900/30 w-10 h-10 rounded-lg flex items-center justify-center">
-              <Layers className="text-indigo-600 dark:text-indigo-400" size={16} />
+              <File className="text-indigo-600 dark:text-indigo-400" size={16} />
             </div>
             <div className="flex-1">
               <h4 className="font-medium text-sm">Batch Convert</h4>
@@ -278,7 +269,7 @@ export default function Home() {
                   ) : file.type === 'docx' ? (
                     <File className="text-blue-600 dark:text-blue-400" size={16} />
                   ) : (
-                    <Images className="text-green-600 dark:text-green-400" size={16} />
+                    <FileImage className="text-green-600 dark:text-green-400" size={16} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -291,13 +282,13 @@ export default function Home() {
                     onClick={() => handleShareFile(file)}
                     className="p-2 text-gray-400 hover:text-primary transition-colors"
                   >
-                    <Share size={14} />
+                    <Upload size={14} />
                   </button>
                   <button 
                     onClick={() => handleDeleteFile(file.id)}
                     className="p-2 text-gray-400 hover:text-red-500 transition-colors"
                   >
-                    <Trash2 size={14} />
+                    <X size={14} />
                   </button>
                 </div>
               </div>
