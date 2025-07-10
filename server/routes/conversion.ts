@@ -8,7 +8,7 @@ const router = Router();
 const upload = multer({ dest: 'uploads/' });
 
 // Ensure uploads directory exists
-fs.ensureDirSync('uploads');
+fs.ensureDir('uploads');
 
 // File upload and conversion endpoint
 router.post('/convert', upload.single('file'), async (req, res) => {
@@ -41,12 +41,20 @@ router.post('/convert', upload.single('file'), async (req, res) => {
         console.error('Error cleaning up files:', error);
       }
     });
-  } catch (error) {
-    console.error('Conversion error:', error);
-    res.status(500).json({ 
-      error: 'Conversion failed', 
-      details: error.message 
-    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Conversion error:', error);
+      res.status(500).json({ 
+        error: 'Conversion failed', 
+        details: error.message 
+      });
+    } else {
+      console.error('Conversion error:', error);
+      res.status(500).json({ 
+        error: 'Conversion failed', 
+        details: 'Unknown error' 
+      });
+    }
   }
 });
 
@@ -69,9 +77,14 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       message: 'फाइल सफलतापूर्वक कनवर्ट हो गई',
       downloadUrl: `/download/${path.basename(outputPath)}`
     });
-  } catch (error) {
-    console.error('कनवर्जन में त्रुटि:', error);
-    res.status(500).json({ error: 'आंतरिक सर्वर त्रुटि' });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('कनवर्जन में त्रुटि:', error);
+      res.status(500).json({ error: 'आंतरिक सर्वर त्रुटि', details: error.message });
+    } else {
+      console.error('कनवर्जन में त्रुटि:', error);
+      res.status(500).json({ error: 'आंतरिक सर्वर त्रुटि', details: 'अज्ञात त्रुटि' });
+    }
   }
 });
 
