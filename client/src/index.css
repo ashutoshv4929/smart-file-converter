@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+:root {
+  --background: hsl(0, 0%, 98%);
+  --foreground: hsl(222, 84%, 5%);
+  --muted: hsl(210, 40%, 96%);
+  --muted-foreground: hsl(215, 16%, 47%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(222, 84%, 5%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(222, 84%, 5%);
+  --border: hsl(214, 32%, 91%);
+  --input: hsl(214, 32%, 91%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --primary-light: hsl(207, 90%, 77%);
+  --primary-dark: hsl(208, 90%, 47%);
+  --secondary: hsl(174, 97%, 43%);
+  --secondary-dark: hsl(174, 97%, 26%);
+  --secondary-foreground: hsl(222, 84%, 5%);
+  --accent: hsl(210, 40%, 96%);
+  --accent-foreground: hsl(222, 84%, 5%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(222, 84%, 5%);
+  --surface: hsl(0, 0%, 100%);
+  --surface-dark: hsl(222, 84%, 12%);
+  --background-dark: hsl(222, 84%, 7%);
+  --on-primary: hsl(0, 0%, 100%);
+  --on-surface: hsl(222, 84%, 5%);
+  --on-background: hsl(222, 84%, 5%);
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: hsl(222, 84%, 7%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(217, 32%, 17%);
+  --muted-foreground: hsl(215, 20%, 65%);
+  --popover: hsl(222, 84%, 12%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(222, 84%, 12%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(217, 32%, 17%);
+  --input: hsl(217, 32%, 17%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --primary-light: hsl(207, 90%, 77%);
+  --primary-dark: hsl(208, 90%, 47%);
+  --secondary: hsl(174, 97%, 43%);
+  --secondary-dark: hsl(174, 97%, 26%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(217, 32%, 17%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62%, 30%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(212, 92%, 90%);
+  --surface: hsl(222, 84%, 12%);
+  --surface-dark: hsl(222, 84%, 9%);
+  --background-dark: hsl(222, 84%, 5%);
+  --on-primary: hsl(0, 0%, 100%);
+  --on-surface: hsl(0, 0%, 98%);
+  --on-background: hsl(0, 0%, 98%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-roboto antialiased bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .font-roboto {
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  
+  .bg-primary-light {
+    background-color: var(--primary-light);
+  }
+  
+  .bg-primary-dark {
+    background-color: var(--primary-dark);
+  }
+  
+  .bg-secondary {
+    background-color: var(--secondary);
+  }
+  
+  .bg-secondary-dark {
+    background-color: var(--secondary-dark);
+  }
+  
+  .bg-surface {
+    background-color: var(--surface);
+  }
+  
+  .bg-surface-dark {
+    background-color: var(--surface-dark);
+  }
+  
+  .bg-background-dark {
+    background-color: var(--background-dark);
+  }
+  
+  .text-primary-light {
+    color: var(--primary-light);
+  }
+  
+  .text-on-primary {
+    color: var(--on-primary);
+  }
+  
+  .text-on-surface {
+    color: var(--on-surface);
+  }
+  
+  .text-on-background {
+    color: var(--on-background);
+  }
+  
+  .hover\:bg-primary-dark:hover {
+    background-color: var(--primary-dark);
+  }
+}
